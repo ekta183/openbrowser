@@ -150,10 +150,21 @@ export const useMessageHandler = () => {
     );
   };
 
+  const clearAllMessages = async () => {
+    try {
+      await messageStorage.clearMessages();
+      setMessages([]);
+      setCurrentAssistantMessage(null);
+    } catch (error) {
+      console.error("Failed to clear messages:", error);
+    }
+  };
+
   return {
     messages,
     currentAssistantMessage,
     addUserMessage,
+    clearAllMessages,
     isLoading,
   };
 };

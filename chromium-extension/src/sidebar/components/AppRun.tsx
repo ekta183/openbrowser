@@ -7,10 +7,11 @@ import { useMessageHandler } from "../hooks/useMessageHandler";
 import { useStorageSync } from "../hooks/useStorageSync";
 import { useModeConfig } from "../hooks/useModeConfig";
 import { useAutoScroll } from "../hooks/useAutoScroll";
+import { messageStorage } from "../services/messageStorage";
 import "../styles/sidebar.css";
 
 export const AppRun: React.FC = () => {
-  const { messages, currentAssistantMessage, addUserMessage, isLoading } = useMessageHandler();
+  const { messages, currentAssistantMessage, addUserMessage, clearAllMessages, isLoading } = useMessageHandler();
   const { running, prompt, updateRunningState, updatePrompt } = useStorageSync();
   const { mode, markImageMode, setMode, setMarkImageMode } = useModeConfig();
   const messagesEndRef = useAutoScroll([messages, currentAssistantMessage]);
@@ -28,6 +29,10 @@ export const AppRun: React.FC = () => {
     addUserMessage(prompt);
     updateRunningState(true, prompt);
     chrome.runtime.sendMessage({ type: "run", prompt: prompt.trim() });
+  };
+
+  const handleClearHistory = async () => {
+    await clearAllMessages();
   };
 
   return (
@@ -94,6 +99,14 @@ export const AppRun: React.FC = () => {
               <option value="dom">DOM</option>
               <option value="draw">Draw</option>
             </select>
+            <button
+              onClick={handleClearHistory}
+              className="control-select"
+              disabled={messages.length === 0 && !currentAssistantMessage}
+              title="Clear chat history"
+            >
+              🗑️
+            </button>
           </div>
 
           <Button
