@@ -13,8 +13,8 @@ chrome.runtime.onMessage.addListener(async function (
 ) {
   if (request.type == "run") {
     try {
-      // Run workflow
-      openbrowser = await main(request.prompt);
+      // Run workflow with conversation history context
+      openbrowser = await main(request.prompt, request.context || []);
     } catch (e) {
       console.error(e);
       chrome.runtime.sendMessage({
@@ -30,7 +30,6 @@ chrome.runtime.onMessage.addListener(async function (
     if (openbrowser) {
       openbrowser.getAllTaskId().forEach((taskId) => {
         openbrowser.abortTask(taskId);
-        console.log("Aborted taskId: " + taskId);
       });
     }
     chrome.storage.local.set({ running: false });

@@ -1,5 +1,6 @@
 import { Message } from "../types/messages";
 import { STORAGE_CONFIG } from "../config/storage.config";
+import { sessionStorage } from "./sessionStorage";
 
 class MessageStorageService {
   private db: IDBDatabase | null = null;
@@ -31,16 +32,39 @@ class MessageStorageService {
 
       request.onupgradeneeded = (event) => {
         const db = (event.target as IDBOpenDBRequest).result;
+        const transaction = (event.target as IDBOpenDBRequest).transaction;
 
-        // Create object store if it doesn't exist
-        if (!db.objectStoreNames.contains(STORAGE_CONFIG.STORE_NAME)) {
-          const objectStore = db.createObjectStore(STORAGE_CONFIG.STORE_NAME, {
+        let messagesStore: IDBObjectStore;
+
+        // Create messages object store if it doesn't exist
+        if (!db.objectStoreNames.contains(STORAGE_CONFIG.MESSAGES_STORE)) {
+          messagesStore = db.createObjectStore(STORAGE_CONFIG.MESSAGES_STORE, {
             keyPath: "id",
             autoIncrement: false,
           });
+        } else {
+          // Get existing object store from transaction
+          messagesStore = transaction!.objectStore(STORAGE_CONFIG.MESSAGES_STORE);
+        }
 
-          // Create index on timestamp for sorting and efficient deletion
-          objectStore.createIndex("timestamp", "timestamp", { unique: false });
+        // Create timestamp index if it doesn't exist
+        if (!messagesStore.indexNames.contains("timestamp")) {
+          messagesStore.createIndex("timestamp", "timestamp", { unique: false });
+        }
+
+        // Create sessionId index if it doesn't exist
+        if (!messagesStore.indexNames.contains("sessionId")) {
+          messagesStore.createIndex("sessionId", "sessionId", { unique: false });
+        }
+
+        // Create sessions object store if it doesn't exist
+        if (!db.objectStoreNames.contains(STORAGE_CONFIG.SESSIONS_STORE)) {
+          const sessionsStore = db.createObjectStore(STORAGE_CONFIG.SESSIONS_STORE, {
+            keyPath: "id",
+            autoIncrement: false,
+          });
+          // Create index for updatedAt to easily find latest session
+          sessionsStore.createIndex("updatedAt", "updatedAt", { unique: false });
         }
       };
     });
@@ -62,10 +86,10 @@ class MessageStorageService {
       }
 
       const transaction = this.db.transaction(
-        [STORAGE_CONFIG.STORE_NAME],
+        [STORAGE_CONFIG.MESSAGES_STORE],
         "readonly"
       );
-      const objectStore = transaction.objectStore(STORAGE_CONFIG.STORE_NAME);
+      const objectStore = transaction.objectStore(STORAGE_CONFIG.MESSAGES_STORE);
       const request = objectStore.count();
 
       request.onsuccess = () => {
@@ -83,10 +107,16 @@ class MessageStorageService {
    * Add a single message to the database
    * Automatically removes oldest message if limit exceeded
    * Uses in-memory counter for efficiency
+   * Also upserts the session (creates if doesn't exist, updates if exists)
    */
   async addMessage(message: Message): Promise<void> {
     if (!this.db) {
       await this.init();
+    }
+
+    // Upsert session in DB (create if doesn't exist, update updatedAt if exists)
+    if (message.sessionId) {
+      await sessionStorage.upsertSession(message.sessionId);
     }
 
     return new Promise((resolve, reject) => {
@@ -96,22 +126,17 @@ class MessageStorageService {
       }
 
       const transaction = this.db.transaction(
-        [STORAGE_CONFIG.STORE_NAME],
+        [STORAGE_CONFIG.MESSAGES_STORE],
         "readwrite"
       );
-      const objectStore = transaction.objectStore(STORAGE_CONFIG.STORE_NAME);
+      const objectStore = transaction.objectStore(STORAGE_CONFIG.MESSAGES_STORE);
 
-      // Add timestamp to message for sorting
-      const messageWithTimestamp = {
-        ...message,
-        timestamp: Date.now(),
-      };
-
-      // Add the new message
-      const addRequest = objectStore.add(messageWithTimestamp);
+      // Use put() to allow updating existing messages (handles duplicate saves gracefully)
+      // This prevents errors when nested setState causes duplicate save attempts
+      const addRequest = objectStore.put(message);
 
       addRequest.onsuccess = () => {
-        // Increment in-memory counter
+        // Increment in-memory counter (only if it's a new message)
         this.messageCount++;
 
         // Check if we exceeded the limit
@@ -142,10 +167,10 @@ class MessageStorageService {
   }
 
   /**
-   * Load all messages from database
-   * Returns messages sorted by timestamp (oldest first)
+   * Load messages by sessionId from database
+   * Returns Message[] sorted by timestamp (oldest first)
    */
-  async loadMessages(): Promise<Message[]> {
+  async loadMessagesBySession(sessionId: string): Promise<Message[]> {
     if (!this.db) {
       await this.init();
     }
@@ -157,27 +182,22 @@ class MessageStorageService {
       }
 
       const transaction = this.db.transaction(
-        [STORAGE_CONFIG.STORE_NAME],
+        [STORAGE_CONFIG.MESSAGES_STORE],
         "readonly"
       );
-      const objectStore = transaction.objectStore(STORAGE_CONFIG.STORE_NAME);
-      const request = objectStore.getAll();
+      const objectStore = transaction.objectStore(STORAGE_CONFIG.MESSAGES_STORE);
+      const index = objectStore.index("sessionId");
+      const request = index.getAll(sessionId);
 
       request.onsuccess = () => {
         const messages = request.result || [];
-
-        // IMPORTANT: Sort by timestamp to ensure correct order
-        // IndexedDB getAll() does NOT guarantee order
+        // Sort by timestamp to ensure chronological order (oldest first)
         messages.sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
-
-        // Remove timestamp property (internal use only)
-        const cleanMessages = messages.map(({ timestamp, ...msg }) => msg);
-
-        resolve(cleanMessages as Message[]);
+        resolve(messages as Message[]);
       };
 
       request.onerror = () => {
-        console.error("Failed to load messages:", request.error);
+        console.error("Failed to load messages by session:", request.error);
         reject(request.error);
       };
     });
@@ -199,10 +219,10 @@ class MessageStorageService {
       }
 
       const transaction = this.db.transaction(
-        [STORAGE_CONFIG.STORE_NAME],
+        [STORAGE_CONFIG.MESSAGES_STORE],
         "readwrite"
       );
-      const objectStore = transaction.objectStore(STORAGE_CONFIG.STORE_NAME);
+      const objectStore = transaction.objectStore(STORAGE_CONFIG.MESSAGES_STORE);
       const request = objectStore.clear();
 
       request.onsuccess = () => {
@@ -217,6 +237,49 @@ class MessageStorageService {
       };
     });
   }
+
+  /**
+   * Clear messages for a specific session
+   */
+  async clearMessagesBySession(sessionId: string): Promise<void> {
+    if (!this.db) {
+      await this.init();
+    }
+
+    return new Promise((resolve, reject) => {
+      if (!this.db) {
+        reject(new Error("Database not initialized"));
+        return;
+      }
+
+      const transaction = this.db.transaction(
+        [STORAGE_CONFIG.MESSAGES_STORE],
+        "readwrite"
+      );
+      const objectStore = transaction.objectStore(STORAGE_CONFIG.MESSAGES_STORE);
+      const index = objectStore.index("sessionId");
+      const request = index.openCursor(IDBKeyRange.only(sessionId));
+
+      request.onsuccess = (event) => {
+        const cursor = (event.target as IDBRequest).result;
+        if (cursor) {
+          cursor.delete();
+          this.messageCount--;
+          cursor.continue();
+        }
+      };
+
+      transaction.oncomplete = () => {
+        resolve();
+      };
+
+      transaction.onerror = () => {
+        console.error("Failed to clear messages by session:", transaction.error);
+        reject(transaction.error);
+      };
+    });
+  }
+
 }
 
 // Export singleton instance

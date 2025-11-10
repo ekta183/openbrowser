@@ -12,7 +12,7 @@ export async function getLLMConfig(name: string = "llmConfig"): Promise<any> {
   return result[name];
 }
 
-export async function main(prompt: string): Promise<OpenBrowser> {
+export async function main(prompt: string, context: any[] = []): Promise<OpenBrowser> {
   let config = await getLLMConfig();
   if (!config || !config.apiKey) {
     chrome.runtime.sendMessage({
@@ -68,10 +68,27 @@ export async function main(prompt: string): Promise<OpenBrowser> {
           messageType: "tool_use",
           agentName: message.agentName,
           toolName: message.toolName,
+          toolId: message.toolId,
           params: message.params
         });
+      } else if (message.type == "tool_result") {
+        chrome.runtime.sendMessage({
+          type: "tool_result",
+          agentName: message.agentName,
+          nodeId: message.nodeId,
+          toolName: message.toolName,
+          toolId: message.toolId,
+          params: message.params,
+          toolResult: message.toolResult
+        });
+      } else if (message.type == "agent_result") {
+        chrome.runtime.sendMessage({
+          type: "message",
+          messageType: "result",
+          text: message.result || "",
+          success: !message.error
+        });
       }
-      console.log("message: ", JSON.stringify(message, null, 2));
     },
     onHumanConfirm: async (context, prompt) => {
       return doConfirm(prompt);
@@ -81,7 +98,7 @@ export async function main(prompt: string): Promise<OpenBrowser> {
   let agents = [new BrowserAgent()];
   let openbrowser = new OpenBrowser({ llms, agents, callback });
   openbrowser
-    .run(prompt)
+    .run(prompt, undefined, { conversationHistory: context })
     .then((res) => {
       chrome.runtime.sendMessage({
         type: "message",

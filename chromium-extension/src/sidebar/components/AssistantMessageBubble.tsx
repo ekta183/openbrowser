@@ -63,7 +63,7 @@ export const AssistantMessageBubble: React.FC<AssistantMessageBubbleProps> = ({
         {message.items.map((item, idx) => {
           if (item.type === "tool") {
             return <ToolDisplay key={idx} tool={item} />;
-          } else {
+          } else if (item.type === "text") {
             // Parse text for steps
             const cleanedText = removeElementIndexes(cleanText(item.text));
             const parsed = parseStepsFromText(cleanedText);
@@ -100,6 +100,8 @@ export const AssistantMessageBubble: React.FC<AssistantMessageBubbleProps> = ({
               );
             }
           }
+          // Skip tool-result items (not displayed in UI)
+          return null;
         })}
 
         {/* Result */}

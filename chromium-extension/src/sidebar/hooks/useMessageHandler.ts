@@ -9,17 +9,22 @@ import {
 import { parseWorkflowXML } from "../utils/xmlParser";
 import { messageStorage } from "../services/messageStorage";
 
-export const useMessageHandler = () => {
+export const useMessageHandler = (currentSessionId: string) => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [currentAssistantMessage, setCurrentAssistantMessage] =
     useState<AssistantMessage | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Load messages from IndexedDB on mount
+  // Load messages when session changes
   useEffect(() => {
     const loadStoredMessages = async () => {
+      if (!currentSessionId) {
+        setIsLoading(false);
+        return;
+      }
+
       try {
-        const storedMessages = await messageStorage.loadMessages();
+        const storedMessages = await messageStorage.loadMessagesBySession(currentSessionId);
         setMessages(storedMessages);
       } catch (error) {
         console.error("Failed to load messages from storage:", error);
@@ -29,7 +34,7 @@ export const useMessageHandler = () => {
     };
 
     loadStoredMessages();
-  }, []);
+  }, [currentSessionId]);
 
   useEffect(() => {
     const messageListener = (message: any) => {
@@ -39,16 +44,35 @@ export const useMessageHandler = () => {
         // Finalize current assistant message if exists
         setCurrentAssistantMessage((prev) => {
           if (prev) {
-            setMessages((msgs) => {
-              const newMessages = [...msgs, prev];
-              // Persist to IndexedDB
-              messageStorage.addMessage(prev).catch((error) =>
-                console.error("Failed to save assistant message:", error)
-              );
-              return newMessages;
-            });
+            // Add to messages array
+            setMessages((msgs) => [...msgs, prev]);
+
+            // Save to IndexedDB directly as Message
+            messageStorage.addMessage(prev).catch((error) =>
+              console.error("Failed to save assistant message:", error)
+            );
           }
           return null;
+        });
+      } else if (message.type === "tool_result") {
+        const toolResultItem = {
+          type: "tool-result" as const,
+          toolId: message.toolId,
+          toolName: message.toolName,
+          params: message.params,
+          result: message.toolResult,
+        };
+        setCurrentAssistantMessage((prev) => {
+          if (prev) {
+            return { ...prev, items: [...prev.items, toolResultItem] };
+          }
+          return {
+            id: `assistant-${Date.now()}`,
+            type: "assistant",
+            items: [toolResultItem],
+            timestamp: Date.now(),
+            sessionId: currentSessionId,
+          };
         });
       } else if (message.type === "message") {
         if (message.messageType === "workflow") {
@@ -62,6 +86,8 @@ export const useMessageHandler = () => {
               type: "assistant",
               workflow: parsed,
               items: [],
+              timestamp: Date.now(),
+              sessionId: currentSessionId,
             };
           });
         } else if (message.messageType === "text") {
@@ -78,6 +104,8 @@ export const useMessageHandler = () => {
                 id: `assistant-${Date.now()}`,
                 type: "assistant",
                 items: [textItem],
+                timestamp: Date.now(),
+                sessionId: currentSessionId,
               };
             });
           }
@@ -86,6 +114,7 @@ export const useMessageHandler = () => {
             type: "tool",
             agentName: message.agentName,
             toolName: message.toolName,
+            toolId: message.toolId, // Store toolId from backend
             params: message.params,
           };
           setCurrentAssistantMessage((prev) => {
@@ -96,6 +125,8 @@ export const useMessageHandler = () => {
               id: `assistant-${Date.now()}`,
               type: "assistant",
               items: [toolItem],
+              timestamp: Date.now(),
+              sessionId: currentSessionId,
             };
           });
         } else if (message.messageType === "result") {
@@ -111,6 +142,8 @@ export const useMessageHandler = () => {
               type: "assistant",
               items: [],
               result: { text: message.text, success: message.success },
+              timestamp: Date.now(),
+              sessionId: currentSessionId,
             };
           });
         } else if (message.messageType === "error") {
@@ -123,6 +156,8 @@ export const useMessageHandler = () => {
               type: "assistant",
               items: [],
               error: message.text,
+              timestamp: Date.now(),
+              sessionId: currentSessionId,
             };
           });
         }
@@ -133,18 +168,20 @@ export const useMessageHandler = () => {
     return () => {
       chrome.runtime.onMessage.removeListener(messageListener);
     };
-  }, []);
+  }, [currentSessionId]);
 
-  const addUserMessage = (text: string) => {
+  const addUserMessage = async (text: string) => {
     const userMsg: UserMessage = {
       id: `user-${Date.now()}`,
       type: "user",
       text: text.trim(),
+      timestamp: Date.now(),
+      sessionId: currentSessionId,
     };
     setMessages((prev) => [...prev, userMsg]);
     setCurrentAssistantMessage(null);
 
-    // Persist user message to IndexedDB
+    // Save to IndexedDB directly as Message
     messageStorage.addMessage(userMsg).catch((error) =>
       console.error("Failed to save user message:", error)
     );
@@ -160,11 +197,18 @@ export const useMessageHandler = () => {
     }
   };
 
+  const clearMessagesOnSessionChange = () => {
+    // Clear UI messages when session changes
+    setMessages([]);
+    setCurrentAssistantMessage(null);
+  };
+
   return {
     messages,
     currentAssistantMessage,
     addUserMessage,
     clearAllMessages,
+    clearMessagesOnSessionChange,
     isLoading,
   };
 };
