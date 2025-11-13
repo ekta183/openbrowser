@@ -42,7 +42,8 @@ class MessageStorageService {
             keyPath: "id",
             autoIncrement: false,
           });
-        } else {
+        }
+        if (db.objectStoreNames.contains(STORAGE_CONFIG.MESSAGES_STORE) && !messagesStore) {
           // Get existing object store from transaction
           messagesStore = transaction!.objectStore(STORAGE_CONFIG.MESSAGES_STORE);
         }

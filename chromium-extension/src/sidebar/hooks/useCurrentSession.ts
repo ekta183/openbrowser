@@ -19,11 +19,11 @@ export function useCurrentSession() {
 
         if (latestSession) {
           setCurrentSessionId(latestSession.id);
-        } else {
-          // No session exists, create new one
-          const newSessionId = `session-${Date.now()}`;
-          setCurrentSessionId(newSessionId);
+          return;
         }
+        // No session exists, create new one
+        const newSessionId = `session-${Date.now()}`;
+        setCurrentSessionId(newSessionId);
       } catch (error) {
         const fallbackId = `session-${Date.now()}`;
         setCurrentSessionId(fallbackId);
@@ -64,10 +64,10 @@ export function useCurrentSession() {
       if (allSessions.length > 0) {
         // Switch to the first available session
         selectSession(allSessions[0].id);
-      } else {
-        // No sessions left, create a new one
-        startNewSession();
+        return;
       }
+      // No sessions left, create a new one
+      startNewSession();
     }
   };
 

@@ -139,15 +139,15 @@ class SessionStorageService {
           // Session exists - update updatedAt
           existingSession.updatedAt = Date.now();
           objectStore.put(existingSession);
-        } else {
-          // Session doesn't exist - create it
-          const newSession: Session = {
-            id: sessionId,
-            title: title || sessionId,
-            updatedAt: Date.now(),
-          };
-          objectStore.add(newSession);
+          return;
         }
+        // Session doesn't exist - create it
+        const newSession: Session = {
+          id: sessionId,
+          title: title || sessionId,
+          updatedAt: Date.now(),
+        };
+        objectStore.add(newSession);
       };
 
       transaction.oncomplete = () => {
@@ -190,9 +190,9 @@ class SessionStorageService {
         const cursor = request.result;
         if (cursor) {
           resolve(cursor.value as Session);
-        } else {
-          resolve(null);
+          return;
         }
+        resolve(null);
       };
 
       request.onerror = () => {

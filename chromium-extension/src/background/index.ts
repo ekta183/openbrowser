@@ -14,19 +14,24 @@ chrome.runtime.onMessage.addListener(async function (
   if (request.type == "run") {
     try {
       // Run workflow with conversation history context
-      openbrowser = await main(request.prompt, request.context || []);
+      openbrowser = await main(request.prompt, request.context || [], request.sessionId);
     } catch (e) {
       console.error(e);
       chrome.runtime.sendMessage({
         type: "message",
         messageType: "error",
-        text: e.toString()
+        text: e.toString(),
+        sessionId: request.sessionId
       });
     }
-  } else if (request.type == "update_mode") {
+    return;
+  }
+  if (request.type == "update_mode") {
     config.mode = request.mode;
     config.markImageMode = request.markImageMode;
-  } else if (request.type == "stop") {
+    return;
+  }
+  if (request.type == "stop") {
     if (openbrowser) {
       openbrowser.getAllTaskId().forEach((taskId) => {
         openbrowser.abortTask(taskId);

@@ -44,10 +44,12 @@ export const useMessageHandler = (currentSessionId: string) => {
         // Finalize current assistant message if exists
         setCurrentAssistantMessage((prev) => {
           if (prev) {
-            // Add to messages array
-            setMessages((msgs) => [...msgs, prev]);
+            // Only add to messages array if it belongs to the current session
+            if (prev.sessionId === currentSessionId) {
+              setMessages((msgs) => [...msgs, prev]);
+            }
 
-            // Save to IndexedDB directly as Message
+            // Always save to IndexedDB with the correct sessionId
             messageStorage.addMessage(prev).catch((error) =>
               console.error("Failed to save assistant message:", error)
             );
@@ -71,7 +73,7 @@ export const useMessageHandler = (currentSessionId: string) => {
             type: "assistant",
             items: [toolResultItem],
             timestamp: Date.now(),
-            sessionId: currentSessionId,
+            sessionId: message.sessionId || currentSessionId,
           };
         });
       } else if (message.type === "message") {
@@ -87,7 +89,7 @@ export const useMessageHandler = (currentSessionId: string) => {
               workflow: parsed,
               items: [],
               timestamp: Date.now(),
-              sessionId: currentSessionId,
+              sessionId: message.sessionId || currentSessionId,
             };
           });
         } else if (message.messageType === "text") {
@@ -105,7 +107,7 @@ export const useMessageHandler = (currentSessionId: string) => {
                 type: "assistant",
                 items: [textItem],
                 timestamp: Date.now(),
-                sessionId: currentSessionId,
+                sessionId: message.sessionId || currentSessionId,
               };
             });
           }
@@ -126,7 +128,7 @@ export const useMessageHandler = (currentSessionId: string) => {
               type: "assistant",
               items: [toolItem],
               timestamp: Date.now(),
-              sessionId: currentSessionId,
+              sessionId: message.sessionId || currentSessionId,
             };
           });
         } else if (message.messageType === "result") {
@@ -143,7 +145,7 @@ export const useMessageHandler = (currentSessionId: string) => {
               items: [],
               result: { text: message.text, success: message.success },
               timestamp: Date.now(),
-              sessionId: currentSessionId,
+              sessionId: message.sessionId || currentSessionId,
             };
           });
         } else if (message.messageType === "error") {
@@ -157,7 +159,7 @@ export const useMessageHandler = (currentSessionId: string) => {
               items: [],
               error: message.text,
               timestamp: Date.now(),
-              sessionId: currentSessionId,
+              sessionId: message.sessionId || currentSessionId,
             };
           });
         }

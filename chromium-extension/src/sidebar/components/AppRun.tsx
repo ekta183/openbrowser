@@ -38,6 +38,7 @@ export const AppRun: React.FC = () => {
       type: "run",
       prompt: prompt.trim(),
       context: llmContext, // Send conversation history
+      sessionId: currentSessionId, // Include sessionId to ensure messages stay in same session
     });
   };
 
@@ -67,7 +68,8 @@ export const AppRun: React.FC = () => {
                 {messages.map((msg) => {
                   if (msg.type === "user") {
                     return <UserMessageBubble key={msg.id} message={msg} />;
-                  } else if (msg.type === "assistant") {
+                  }
+                  if (msg.type === "assistant") {
                     return <AssistantMessageBubble key={msg.id} message={msg} />;
                   }
                   // Skip tool-result messages (shouldn't be in display list but TypeScript doesn't know)
