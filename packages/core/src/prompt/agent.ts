@@ -1,4 +1,5 @@
 import config from "../config";
+import Log from "../common/log";
 import { Agent } from "../agent";
 import Context from "../core/context";
 import { sub } from "../common/utils";
@@ -113,6 +114,7 @@ export function getAgentSystemPrompt(
     prompt += "\n" + extSysPrompt.trim() + "\n";
   }
   prompt += "\nCurrent datetime: {datetime}";
+
   if (context.chain.agents.length > 1) {
     prompt += "\n Main task: " + context.chain.taskPrompt;
     prompt += "\n\n# Pre-task execution results";

@@ -28,11 +28,11 @@ export async function main(prompt: string, context: any[] = [], sessionId?: stri
 
   const llms: LLMs = {
     default: {
-      provider: config.llm as any,
+      provider: config.provider as any,
       model: config.modelName,
       apiKey: config.apiKey,
       config: {
-        baseURL: config.options.baseURL
+        baseURL: config.options?.baseURL
       }
     }
   };

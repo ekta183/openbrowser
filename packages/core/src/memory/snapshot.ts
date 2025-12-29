@@ -40,7 +40,7 @@ export default class TaskSnapshotTool implements Tool {
     let doneIds = args.doneIds as number[];
     let taskSnapshot = args.taskSnapshot as string;
     let agentNode = agentContext.agentChain.agent;
-    let taskPrompt = agentContext.context.chain.taskPrompt;
+    let taskPrompt = agentContext.context.chain.taskPrompt || "";
     let agentXml = buildAgentRootXml(
       agentNode.xml,
       taskPrompt,

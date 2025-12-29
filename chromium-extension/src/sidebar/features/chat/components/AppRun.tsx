@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useRef } from "react";
 import { Button, Input } from "antd";
 import { History, Square, Send, Plus, Settings, ChevronUp } from "lucide-react";
 import { AssistantMessageBubble } from "../../messages/components/AssistantMessageBubble";
@@ -36,7 +36,20 @@ export const AppRun: React.FC = () => {
   const { running, prompt, updateRunningState, updatePrompt } =
     useStorageSync();
   const { mode, markImageMode } = useModeConfig();
-  const messagesEndRef = useAutoScroll([messages, currentAssistantMessage]);
+
+  // Track when we're loading older messages to prevent auto-scroll
+  const isLoadingMoreRef = useRef(false);
+  const messagesEndRef = useAutoScroll([messages, currentAssistantMessage], isLoadingMoreRef);
+
+  // Wrapper function to handle load more with scroll prevention
+  const handleLoadMore = async () => {
+    isLoadingMoreRef.current = true;
+    await loadMoreMessages();
+    // Reset flag after a short delay to allow messages to render
+    setTimeout(() => {
+      isLoadingMoreRef.current = false;
+    }, 100);
+  };
 
   const handleClick = () => {
     if (running) {
@@ -87,7 +100,7 @@ export const AppRun: React.FC = () => {
                 {hasMore && (
                   <div className="load-more-container">
                     <Button
-                      onClick={loadMoreMessages}
+                      onClick={handleLoadMore}
                       loading={isLoadingMore}
                       className="load-more-btn"
                       icon={!isLoadingMore && <ChevronUp size={14} />}

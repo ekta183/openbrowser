@@ -191,11 +191,10 @@ export async function callAgentLLM(
   requestHandler?: (request: LLMRequest) => void
 ): Promise<Array<LanguageModelV2TextPart | LanguageModelV2ToolCallPart>> {
   await agentContext.context.checkAborted();
-  if (
-    !noCompress &&
-    (messages.length >= config.compressThreshold || (messages.length >= 10 && estimatePromptTokens(messages, tools) >= config.compressTokensThreshold))
-  ) {
-    // Compress messages
+
+  if (!noCompress &&
+    (messages.length >= config.compressThreshold ||
+     (messages.length >= 10 && estimatePromptTokens(messages, tools) >= config.compressTokensThreshold))) {
     await memory.compressAgentMessages(agentContext, messages, tools);
   }
   if (!toolChoice) {

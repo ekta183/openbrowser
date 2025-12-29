@@ -1,3 +1,4 @@
+import Log from "./log";
 import { fixXmlTag } from "./utils";
 import { DOMParser, XMLSerializer } from "@xmldom/xmldom";
 import {

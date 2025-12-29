@@ -10,7 +10,7 @@ import { call_timeout } from "../common/utils";
 import { createAnthropic } from "@ai-sdk/anthropic";
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { createAmazonBedrock } from "@ai-sdk/amazon-bedrock";
-import { createOpenRouter } from '@openrouter/ai-sdk-provider';
+import { createOpenRouter } from "@openrouter/ai-sdk-provider";
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
 import {
   LLMs,
@@ -34,7 +34,7 @@ export class RetryLanguageModel {
     names?: string[],
     stream_first_timeout?: number,
     stream_token_timeout?: number,
-    context?: Context | AgentContext,
+    context?: Context | AgentContext
   ) {
     this.llms = llms;
     this.names = names || [];
@@ -94,7 +94,11 @@ export class RetryLanguageModel {
       }
       let _options = options;
       if (llmConfig.handler) {
-        _options = await llmConfig.handler(_options, this.context, this.agentContext);
+        _options = await llmConfig.handler(
+          _options,
+          this.context,
+          this.agentContext
+        );
       }
       try {
         let result = (await llm.doGenerate(_options)) as GenerateResult;
@@ -119,7 +123,25 @@ export class RetryLanguageModel {
             messages: _options.prompt,
           });
         }
-        Log.error(`LLM error, name: ${name} => `, e);
+        const errorDetails = {
+          llmName: name,
+          llmProvider: llmConfig?.provider,
+          llmModel: llmConfig?.model,
+          errorName: e?.name || "Unknown",
+          errorMessage: e?.message || "No message",
+          stack: e?.stack,
+          statusCode: e?.statusCode,
+          responseBody: e?.responseBody,
+          responseHeaders: e?.responseHeaders,
+          requestBody: e?.requestBody,
+          requestBodyValues: e?.requestBodyValues,
+          isRetryable: e?.isRetryable,
+          cause: e?.cause,
+          url: e?.url,
+          timestamp: new Date().toISOString(),
+          fullError: JSON.stringify(e, Object.getOwnPropertyNames(e)),
+        };
+        Log.error(`LLM nonstream error [${name}]:`, errorDetails);
       }
     }
     return Promise.reject(
@@ -163,7 +185,11 @@ export class RetryLanguageModel {
       }
       let _options = options;
       if (llmConfig.handler) {
-        _options = await llmConfig.handler(_options, this.context, this.agentContext);
+        _options = await llmConfig.handler(
+          _options,
+          this.context,
+          this.agentContext
+        );
       }
       try {
         const controller = new AbortController();
@@ -247,7 +273,7 @@ export class RetryLanguageModel {
     if (llm.provider == "openai") {
       if (
         !baseURL ||
-        baseURL.indexOf("openai.com") > -1 ||
+        baseURL.indexOf("openai.ai") > -1 ||
         llm.config?.organization ||
         llm.config?.openai
       ) {
@@ -275,18 +301,70 @@ export class RetryLanguageModel {
         fetch: llm.fetch,
         headers: llm.config?.headers,
       }).languageModel(llm.model);
-    } else if (llm.provider == "google") {
+    } else if (llm.provider == "google" || llm.provider == "gemini") {
       return createGoogleGenerativeAI({
         apiKey: apiKey,
         baseURL: baseURL,
         fetch: llm.fetch,
         headers: llm.config?.headers,
       }).languageModel(llm.model);
+    } else if (llm.provider === "opencode") {
+      const model = llm.model;
+      const opencodeBaseURL = baseURL || "https://opencode.ai/zen/v1";
+
+      if (model.startsWith("claude-")) {
+        return createAnthropic({
+          apiKey: apiKey,
+          baseURL: opencodeBaseURL,
+          fetch: llm.fetch,
+          headers: llm.config?.headers,
+        }).languageModel(model);
+      }
+
+      if (model.startsWith("gemini-")) {
+        return createGoogleGenerativeAI({
+          apiKey: apiKey,
+          baseURL: opencodeBaseURL,
+          fetch: llm.fetch,
+          headers: llm.config?.headers,
+        }).languageModel(model);
+      }
+
+      if (model.startsWith("gpt-")) {
+        return createOpenAI({
+          apiKey: apiKey,
+          baseURL: opencodeBaseURL,
+          fetch: llm.fetch,
+          headers: llm.config?.headers,
+        }).languageModel(model);
+      }
+
+      return createOpenAICompatible({
+        name: model,
+        apiKey: apiKey,
+        baseURL: opencodeBaseURL,
+        fetch: llm.fetch,
+        headers: llm.config?.headers,
+      }).languageModel(model);
     } else if (llm.provider == "aws") {
-      let keys = apiKey.split("=");
+      // Support both structured credentials and legacy "key=secret" format
+      let accessKeyId: string;
+      let secretAccessKey: string;
+
+      if (llm.config?.accessKeyId && llm.config?.secretAccessKey) {
+        // Preferred: structured credentials
+        accessKeyId = llm.config.accessKeyId;
+        secretAccessKey = llm.config.secretAccessKey;
+      } else {
+        // Fallback: parse from apiKey (legacy format: "accessKey=secretKey")
+        let keys = apiKey.split("=");
+        accessKeyId = keys[0];
+        secretAccessKey = keys[1] || "";
+      }
+
       return createAmazonBedrock({
-        accessKeyId: keys[0],
-        secretAccessKey: keys[1],
+        accessKeyId: accessKeyId,
+        secretAccessKey: secretAccessKey,
         baseURL: baseURL,
         region: llm.config?.region || "us-west-1",
         fetch: llm.fetch,
@@ -295,7 +373,7 @@ export class RetryLanguageModel {
       }).languageModel(llm.model);
     } else if (llm.provider == "openai-compatible") {
       return createOpenAICompatible({
-        name: llm.config?.name || llm.model.split("/")[0],
+        name: llm.config?.name ?? llm.model,
         apiKey: apiKey,
         baseURL: baseURL || "https://openrouter.ai/api/v1",
         fetch: llm.fetch,
@@ -306,12 +384,16 @@ export class RetryLanguageModel {
         apiKey: apiKey,
         baseURL: baseURL || "https://openrouter.ai/api/v1",
         fetch: llm.fetch,
-        headers: llm.config?.headers,
+        headers: {
+          "HTTP-Referer": llm.config?.referer,
+          "X-Title": llm.config?.appName,
+          ...llm.config?.headers,
+        },
         compatibility: llm.config?.compatibility,
       }).languageModel(llm.model);
     } else if (llm.provider == "modelscope") {
       return createOpenAICompatible({
-        name: llm.config?.name || llm.model.split("/")[0],
+        name: llm.config?.name ?? llm.model,
         apiKey: apiKey,
         baseURL: baseURL || "https://api-inference.modelscope.cn/v1",
         fetch: llm.fetch,

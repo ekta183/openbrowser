@@ -45,7 +45,8 @@ export default class TaskNodeStatusTool implements Tool {
     let doneIds = args.doneIds as number[];
     let todoIds = args.todoIds as number[];
     let agentNode = agentContext.agentChain.agent;
-    let taskPrompt = agentContext.context.chain.taskPrompt;
+
+    let taskPrompt = agentContext.context.chain.taskPrompt || "";
     let agentXml = buildAgentRootXml(agentNode.xml, taskPrompt, (nodeId, node) => {
       let done = doneIds.indexOf(nodeId) > -1;
       let todo = todoIds.indexOf(nodeId) > -1;

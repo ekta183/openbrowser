@@ -90,8 +90,10 @@ async function doCompressAgentMessages(
     openbrowserConfig.compressLlms
   );
   rlm.setContext(agentContext);
+
   // extract used tool
   const usedTools = extractUsedTool(messages, tools);
+
   const snapshotTool = new TaskSnapshotTool();
   const newTools = mergeTools(usedTools, [
     {
@@ -101,9 +103,11 @@ async function doCompressAgentMessages(
       inputSchema: snapshotTool.parameters
     }
   ]);
+
   // handle messages
   let lastToolIndex = messages.length - 1;
   let newMessages: LanguageModelV2Prompt = messages;
+
   for (let r = newMessages.length - 1; r > 3; r--) {
     if (newMessages[r].role == "tool") {
       newMessages = newMessages.slice(0, r + 1);
@@ -111,7 +115,9 @@ async function doCompressAgentMessages(
       break;
     }
   }
+
   compressLargeContextMessages(newMessages);
+
   newMessages.push({
     role: "user",
     content: [
@@ -121,6 +127,7 @@ async function doCompressAgentMessages(
       }
     ]
   });
+
   // compress snapshot
   const result = await callAgentLLM(
     agentContext,
@@ -133,12 +140,21 @@ async function doCompressAgentMessages(
       toolName: snapshotTool.name
     }
   );
+
   const toolCall = result.filter((s) => s.type == "tool-call")[0];
+
+  if (!toolCall) {
+    Log.error("ERROR: No tool call found in LLM result!");
+    return;
+  }
+
   const args =
     typeof toolCall.input == "string"
       ? JSON.parse(toolCall.input || "{}")
       : toolCall.input || {};
+
   const toolResult = await snapshotTool.execute(args, agentContext);
+
   const callback = agentContext.context.config.callback;
   if (callback) {
     await callback.onMessage(
@@ -155,14 +171,16 @@ async function doCompressAgentMessages(
       agentContext
     );
   }
+
   // handle original messages
   let firstToolIndex = 3;
   for (let i = 0; i < messages.length; i++) {
-    if (messages[0].role == "tool") {
+    if (messages[i].role == "tool") {
       firstToolIndex = i;
       break;
     }
   }
+
   // system, user, assistant, tool(first), [...], <user>, assistant, tool(last), ...
   messages.splice(firstToolIndex + 1, lastToolIndex - firstToolIndex - 2, {
     role: "user",

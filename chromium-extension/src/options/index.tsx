@@ -1,15 +1,17 @@
 import React, { useState, useEffect } from "react";
 import { createRoot } from "react-dom/client";
-import { Form, Input, Button, message, Card, Select, AutoComplete } from "antd";
+import { Form, Input, Button, message, Card, Select, AutoComplete, Tooltip } from "antd";
+import { Settings } from "lucide-react";
 import "./styles/options.css";
 
 const { Option } = Select;
 
 const OptionsPage = () => {
   const [form] = Form.useForm();
+  const [showAdvanced, setShowAdvanced] = useState(false);
 
   const [config, setConfig] = useState({
-    llm: "anthropic",
+    provider: "anthropic",
     apiKey: "",
     modelName: "claude-sonnet-4-5-20250929",
     options: {
@@ -22,11 +24,13 @@ const OptionsPage = () => {
     markImageMode: "dom" as "dom" | "draw",
   });
 
+  const [customModels, setCustomModels] = useState<Record<string, string[]>>({});
+
   useEffect(() => {
-    chrome.storage.sync.get(["llmConfig", "agentConfig"], (result) => {
+    chrome.storage.sync.get(["llmConfig", "agentConfig", "customModels"], (result) => {
       if (result.llmConfig) {
-        if (result.llmConfig.llm === "") {
-          result.llmConfig.llm = "anthropic";
+        if (result.llmConfig.provider === "") {
+          result.llmConfig.provider = "anthropic";
         }
         setConfig(result.llmConfig);
         form.setFieldsValue(result.llmConfig);
@@ -34,6 +38,9 @@ const OptionsPage = () => {
       if (result.agentConfig) {
         setAgentConfig(result.agentConfig);
         form.setFieldsValue(result.agentConfig);
+      }
+      if (result.customModels) {
+        setCustomModels(result.customModels);
       }
     });
   }, []);
@@ -43,7 +50,7 @@ const OptionsPage = () => {
       .validateFields()
       .then((values) => {
         const llmConfig = {
-          llm: values.llm,
+          provider: values.provider,
           apiKey: values.apiKey,
           modelName: values.modelName,
           options: values.options,
@@ -52,16 +59,32 @@ const OptionsPage = () => {
           mode: values.mode,
           markImageMode: values.markImageMode,
         };
+        const updatedCustomModels = { ...customModels };
+        const currentProvider = values.provider;
+        const currentModel = values.modelName;
+
+        const defaultModels = modelOptions[currentProvider]?.map(m => m.value) || [];
+        if (!defaultModels.includes(currentModel)) {
+          if (!updatedCustomModels[currentProvider]) {
+            updatedCustomModels[currentProvider] = [];
+          }
+          if (!updatedCustomModels[currentProvider].includes(currentModel)) {
+            updatedCustomModels[currentProvider].push(currentModel);
+          }
+        }
+
         setConfig(llmConfig);
         setAgentConfig(agentConfig);
+        setCustomModels(updatedCustomModels);
+
         chrome.storage.sync.set(
           {
             llmConfig,
             agentConfig,
+            customModels: updatedCustomModels,
           },
           () => {
             message.success("Save Success!");
-            // Notify background script of config change
             chrome.runtime.sendMessage({
               type: "update_mode",
               mode: agentConfig.mode,
@@ -76,11 +99,11 @@ const OptionsPage = () => {
   };
 
   const modelLLMs = [
-    { value: "anthropic", label: "Claude (default)" },
+    { value: "anthropic", label: "Anthropic (default)" },
     { value: "openai", label: "OpenAI" },
+    { value: "google", label: "Google Gemini" },
+    { value: "opencode", label: "OpenCode Zen" },
     { value: "openrouter", label: "OpenRouter" },
-    { value: "openai-compatible", label: "OpenAI Compatible" },
-    { value: "modelscope", label: "ModelScope"},
   ];
 
   const modelOptions = {
@@ -88,49 +111,89 @@ const OptionsPage = () => {
       { value: "claude-sonnet-4-5-20250929", label: "Claude Sonnet 4.5 (default)" },
       { value: "claude-sonnet-4-20250514", label: "Claude Sonnet 4" },
       { value: "claude-haiku-4-5-20251001", label: "Claude Haiku 4.5" },
+      { value: "claude-opus-4-5-20251124", label: "Claude Opus 4.5" },
+      { value: "claude-opus-4-1", label: "Claude Opus 4.1" },
     ],
     openai: [
-      { value: "gpt-5", label: "gpt-5 (default)" },
-      { value: "gpt-5-mini", label: "gpt-5-mini" },
-      { value: "gpt-4.1", label: "gpt-4.1" },
-      { value: "gpt-4.1-mini", label: "gpt-4.1-mini" },
+      { value: "gpt-5.2", label: "GPT-5.2 (default)" },
+      { value: "gpt-5.1", label: "GPT-5.1" },
+      { value: "gpt-5", label: "GPT-5" },
+      { value: "gpt-5-mini", label: "GPT-5 Mini" },
+      { value: "gpt-5-nano", label: "GPT-5 Nano" },
+      { value: "gpt-5-pro", label: "GPT-5 Pro" },
+      { value: "gpt-5-codex", label: "GPT-5 Codex" },
+      { value: "gpt-5.1-codex", label: "GPT-5.1 Codex" },
+      { value: "gpt-5.1-codex-max", label: "GPT-5.1 Codex Max" },
+      { value: "gpt-5.1-codex-mini", label: "GPT-5.1 Codex Mini" },
+      { value: "gpt-5.2-pro", label: "GPT-5.2 Pro" },
+      { value: "gpt-4.1", label: "GPT-4.1" },
+      { value: "gpt-4.1-mini", label: "GPT-4.1 Mini" },
+      { value: "gpt-4.1-nano", label: "GPT-4.1 Nano" },
+      { value: "gpt-4o", label: "GPT-4o" },
+      { value: "gpt-4o-mini", label: "GPT-4o Mini" },
+      { value: "o1", label: "o1" },
+      { value: "o3-mini", label: "o3-mini" },
+      { value: "o3-pro", label: "o3-pro" },
       { value: "o4-mini", label: "o4-mini" },
+      { value: "o4-mini-deep-research", label: "o4-mini Deep Research" },
+    ],
+    google: [
+      { value: "gemini-3-pro-preview", label: "Gemini 3 Pro Preview (default)" },
+      { value: "gemini-3-flash-preview", label: "Gemini 3 Flash Preview" },
+      { value: "gemini-2.5-pro", label: "Gemini 2.5 Pro" },
+      { value: "gemini-2.5-pro-preview-05-06", label: "Gemini 2.5 Pro Preview 05-06" },
+      { value: "gemini-2.5-pro-preview-06-05", label: "Gemini 2.5 Pro Preview 06-05" },
+      { value: "gemini-2.5-flash", label: "Gemini 2.5 Flash" },
+      { value: "gemini-2.5-flash-lite", label: "Gemini 2.5 Flash Lite" },
+      { value: "gemini-2.5-flash-preview-04-17", label: "Gemini 2.5 Flash Preview 04-17" },
+      { value: "gemini-2.5-flash-preview-05-20", label: "Gemini 2.5 Flash Preview 05-20" },
+      { value: "gemini-2.5-flash-preview-09-2025", label: "Gemini 2.5 Flash Preview 09-25" },
+      { value: "gemini-2.5-flash-lite-preview-06-17", label: "Gemini 2.5 Flash Lite Preview 06-17" },
+      { value: "gemini-2.5-flash-lite-preview-09-2025", label: "Gemini 2.5 Flash Lite Preview 09-25" },
+      { value: "gemini-2.0-flash", label: "Gemini 2.0 Flash" },
+      { value: "gemini-2.0-flash-lite", label: "Gemini 2.0 Flash Lite" },
+      { value: "gemini-1.5-pro", label: "Gemini 1.5 Pro" },
+      { value: "gemini-1.5-flash", label: "Gemini 1.5 Flash" },
+      { value: "gemini-1.5-flash-8b", label: "Gemini 1.5 Flash-8B" },
+      { value: "gemini-flash-latest", label: "Gemini Flash Latest" },
+      { value: "gemini-flash-lite-latest", label: "Gemini Flash-Lite Latest" },
+      { value: "gemini-live-2.5-flash", label: "Gemini Live 2.5 Flash" },
+      { value: "gemini-live-2.5-flash-preview-native-audio", label: "Gemini Live 2.5 Flash Preview Native Audio" },
+    ],
+    opencode: [
+      { value: "claude-sonnet-4-5", label: "Claude Sonnet 4.5 (default)" },
+      { value: "claude-sonnet-4", label: "Claude Sonnet 4" },
+      { value: "claude-haiku-4-5", label: "Claude Haiku 4.5" },
+      { value: "claude-opus-4-5", label: "Claude Opus 4.5" },
+      { value: "claude-opus-4-1", label: "Claude Opus 4.1" },
+      { value: "gemini-3-pro", label: "Gemini 3 Pro" },
+      { value: "gemini-3-flash", label: "Gemini 3 Flash" },
+      { value: "gpt-5.2", label: "GPT 5.2" },
+      { value: "gpt-5.1", label: "GPT 5.1" },
+      { value: "gpt-5", label: "GPT 5" },
+      { value: "gpt-5-nano", label: "GPT 5 Nano" },
+      { value: "gpt-5-codex", label: "GPT 5 Codex" },
+      { value: "gpt-5.1-codex", label: "GPT 5.1 Codex" },
+      { value: "gpt-5.1-codex-max", label: "GPT 5.1 Codex Max" },
     ],
     openrouter: [
-      { value: "anthropic/claude-sonnet-4.5", label: "claude-sonnet-4.5 (default)" },
-      { value: "anthropic/claude-sonnet-4", label: "claude-sonnet-4" },
-      { value: "anthropic/claude-3.7-sonnet", label: "claude-3.7-sonnet" },
-      { value: "google/gemini-2.5-pro", label: "gemini-2.5-pro" },
-      { value: "openai/gpt-5", label: "gpt-5" },
-      { value: "openai/gpt-5-mini", label: "gpt-5-mini" },
-      { value: "openai/gpt-4.1", label: "gpt-4.1" },
-      { value: "openai/o4-mini", label: "o4-mini" },
-      { value: "openai/gpt-4.1-mini", label: "gpt-4.1-mini" },
-      { value: "x-ai/grok-4", label: "grok-4" },
-      { value: "x-ai/grok-4-fast", label: "grok-4-fast" },
-    ],
-    "openai-compatible": [
-      { value: "doubao-seed-1-6-250615", label: "doubao-seed-1-6-250615" },
-    ],
-    "modelscope": [
-      { value: "Qwen/Qwen3-VL-8B-Instruct", label: "Qwen/Qwen3-VL-8B-Instruct" },
-      { value: "Qwen/Qwen3-VL-30B-A3B-Instruct", label: "Qwen/Qwen3-VL-30B-A3B-Instruct" },
-      { value: "Qwen/Qwen3-VL-235B-A22B-Instruct", label: "Qwen/Qwen3-VL-235B-A22B-Instruct" },
-      { value: "Qwen/Qwen3-VL-8B-Thinking", label: "Qwen/Qwen3-VL-8B-Thinking" },
-      { value: "Qwen/Qwen3-VL-30B-A3B-Thinking", label: "Qwen/Qwen3-VL-30B-A3B-Thinking" },
+      { value: "openai/gpt-4", label: "GPT-4 (default)" },
+      { value: "openai/gpt-4-32k", label: "GPT-4 32K" },
+      { value: "anthropic/claude-3.5-sonnet", label: "Claude 3.5 Sonnet" },
+      { value: "google/gemini-pro-1.5", label: "Gemini Pro 1.5" },
     ],
   };
 
   const handleLLMChange = (value: string) => {
     const baseURLMap = {
+      anthropic: "https://api.anthropic.com",
       openai: "https://api.openai.com/v1",
-      anthropic: "https://api.anthropic.com/v1",
+      google: "https://generativelanguage.googleapis.com/v1beta/openai/",
+      opencode: "https://opencode.ai/zen/v1",
       openrouter: "https://openrouter.ai/api/v1",
-      "openai-compatible": "https://openrouter.ai/api/v1",
-      "modelscope": "https://api-inference.modelscope.cn/v1"
     };
     const newConfig = {
-      llm: value,
+      provider: value,
       apiKey: "",
       modelName: modelOptions[value][0].value,
       options: {
@@ -187,16 +250,27 @@ const OptionsPage = () => {
       <Card title="Model Configuration" className="shadow-md">
         <Form form={form} layout="vertical" initialValues={{ ...config, ...agentConfig }}>
           <Form.Item
-            name="llm"
-            label="LLM"
+            name="provider"
+            label={
+              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                Provider
+                <Tooltip title="Advanced Settings">
+                  <Settings
+                    onClick={() => setShowAdvanced(!showAdvanced)}
+                    style={{ cursor: "pointer" }}
+                    size={16}
+                  />
+                </Tooltip>
+              </div>
+            }
             rules={[
               {
                 required: true,
-                message: "Please select a LLM",
+                message: "Please select a provider",
               },
             ]}
           >
-            <Select placeholder="Choose a LLM" onChange={handleLLMChange}>
+            <Select placeholder="Choose a provider" onChange={handleLLMChange}>
               {modelLLMs.map((llm) => (
                 <Option key={llm.value} value={llm.value}>
                   {llm.label}
@@ -204,18 +278,20 @@ const OptionsPage = () => {
               ))}
             </Select>
           </Form.Item>
-          <Form.Item
-            name={["options", "baseURL"]}
-            label="Base URL"
-            rules={[
-              {
-                required: true,
-                message: "Please enter the base URL",
-              },
-            ]}
-          >
-            <Input placeholder="Please enter the base URL" />
-          </Form.Item>
+          {showAdvanced && (
+            <Form.Item
+              name={["options", "baseURL"]}
+              label="Base URL"
+              rules={[
+                {
+                  required: true,
+                  message: "Please enter the base URL",
+                },
+              ]}
+            >
+              <Input placeholder="Please enter the base URL" />
+            </Form.Item>
+          )}
 
           <Form.Item
             name="modelName"
@@ -229,7 +305,10 @@ const OptionsPage = () => {
           >
             <AutoComplete
               placeholder="Model name"
-              options={modelOptions[config.llm]}
+              options={[
+                ...(modelOptions[config.provider] || []),
+                ...(customModels[config.provider] || []).map(model => ({ value: model, label: model }))
+              ]}
               filterOption={(inputValue, option) =>
                 (option.value as string).toUpperCase().indexOf(inputValue.toUpperCase()) !== -1
               }

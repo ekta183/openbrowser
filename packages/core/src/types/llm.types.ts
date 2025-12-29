@@ -19,9 +19,11 @@ export type LLMprovider =
   | "openai"
   | "anthropic"
   | "google"
+  | "gemini"
   | "aws"
   | "openrouter"
   | "openai-compatible"
+  | "opencode"
   | "modelscope"
   | ProviderV2;
 

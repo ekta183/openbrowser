@@ -156,6 +156,11 @@ body {
   transition: all 0.2s ease !important;
 }
 
+/* Remove border from API Key input */
+#apiKey {
+  border: none !important;
+}
+
 .ant-input::placeholder,
 .ant-input-password::placeholder {
   color: var(--text-tertiary) !important;
