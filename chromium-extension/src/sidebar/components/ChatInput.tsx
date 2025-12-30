@@ -38,16 +38,17 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   return (
-    <div className="p-4 bg-white border-t border-gray-200">
+    <div className="p-4 bg-gray-100">
+      {/* Uploaded Files */}
       {uploadedFiles.length > 0 && (
-        <div className="mb-2">
+        <div className="mb-3">
           <Space wrap>
             {uploadedFiles.map((file) => {
               const isImage = file.mimeType.startsWith("image/");
               return (
                 <div
                   key={file.id}
-                  className="inline-flex items-center px-2 py-1 bg-gray-100 rounded border border-gray-300"
+                  className="inline-flex items-center px-2 py-1 bg-gray-100 rounded border border-gray-200"
                 >
                   {isImage ? (
                     <Image
@@ -80,7 +81,8 @@ export const ChatInput: React.FC<ChatInputProps> = ({
         </div>
       )}
 
-      <Space.Compact className="w-full items-center">
+      {/* Floating Chat Input Box */}
+      <div className="relative bg-white border border-gray-300 rounded-xl shadow-sm hover:shadow-md transition-shadow">
         <input
           ref={fileInputRef}
           type="file"
@@ -89,38 +91,51 @@ export const ChatInput: React.FC<ChatInputProps> = ({
           onChange={onFileSelect}
           className="hidden"
         />
-        <Button
-          icon={<PaperClipOutlined />}
-          onClick={() => fileInputRef.current?.click()}
-          disabled={sending || currentMessageId !== null}
-        />
 
-        <WebpageMentionInput
-          value={inputValue}
-          onChange={onInputChange}
-          disabled={sending || currentMessageId !== null}
-          onSend={onSend}
-        />
+        {/* Input Area */}
+        <div className="px-4 pt-3 pb-12">
+          <WebpageMentionInput
+            value={inputValue}
+            onChange={onInputChange}
+            disabled={sending || currentMessageId !== null}
+            onSend={onSend}
+          />
+        </div>
 
-        {currentMessageId ? (
-          <Button danger icon={<StopOutlined />} onClick={onStop}>
-            Stop
-          </Button>
-        ) : (
+        {/* Bottom Action Bar */}
+        <div className="absolute bottom-0 left-0 right-0 flex items-center justify-between px-3 py-2">
+          {/* Left: Attachment Button */}
           <Button
-            type="primary"
-            icon={<SendOutlined />}
-            onClick={onSend}
-            loading={sending}
-            disabled={
-              (!inputValue.trim() && uploadedFiles.length === 0) || sending
-            }
-            className="px-2.5"
-          >
-            Send
-          </Button>
-        )}
-      </Space.Compact>
+            type="text"
+            icon={<PaperClipOutlined />}
+            onClick={() => fileInputRef.current?.click()}
+            disabled={sending || currentMessageId !== null}
+            className="text-gray-500 hover:text-gray-700"
+          />
+
+          {/* Right: Send/Stop Button */}
+          {currentMessageId ? (
+            <Button
+              type="text"
+              danger
+              icon={<StopOutlined />}
+              onClick={onStop}
+              className="text-red-500 hover:text-red-600"
+            />
+          ) : (
+            <Button
+              type="text"
+              icon={<SendOutlined />}
+              onClick={onSend}
+              loading={sending}
+              disabled={
+                (!inputValue.trim() && uploadedFiles.length === 0) || sending
+              }
+              className="text-blue-500 hover:text-blue-600 disabled:text-gray-300"
+            />
+          )}
+        </div>
+      </div>
     </div>
   );
 };

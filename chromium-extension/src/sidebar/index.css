@@ -70,19 +70,19 @@ body {
 .chat-input-editor {
   max-height: 160px;
   overflow-y: auto;
-  border: 1px solid #d9d9d9;
-  border-radius: 6px;
-  padding: 6px 11px;
+  border: none;
+  border-radius: 0;
+  padding: 0;
   font-size: 14px;
   line-height: 1.5715;
-  transition: border-color 0.2s, box-shadow 0.2s;
+  transition: none;
   white-space: pre-wrap;
   word-break: break-word;
 }
 
 .chat-input-editor:focus {
-  border-color: #1677ff;
-  box-shadow: 0 0 0 2px rgba(22, 119, 255, 0.2);
+  border: none;
+  box-shadow: none;
   outline: none;
 }
 
