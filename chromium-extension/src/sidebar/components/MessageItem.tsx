@@ -91,9 +91,13 @@ const renderContentWithWebRefs = (
 
 interface MessageItemProps {
   message: ChatMessage;
+  onUpdateMessage?: (status?: "stop") => void;
 }
 
-export const MessageItem: React.FC<MessageItemProps> = ({ message }) => {
+export const MessageItem: React.FC<MessageItemProps> = ({
+  message,
+  onUpdateMessage,
+}) => {
   const handleWebRefClick = (url: string) => {
     if (!url) return;
     if (typeof chrome !== "undefined" && chrome.tabs?.create) {
@@ -233,7 +237,7 @@ export const MessageItem: React.FC<MessageItemProps> = ({ message }) => {
                 >
                   {item.task.workflow ? (
                     // Multi-agent workflow
-                    <WorkflowCard task={item.task} />
+                    <WorkflowCard task={item.task} onUpdateTask={onUpdateMessage} />
                   ) : (
                     // Single agent tool
                     <AgentExecutionCard

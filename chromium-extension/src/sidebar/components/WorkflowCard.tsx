@@ -1,7 +1,7 @@
 import React from "react";
 import type { TaskData } from "../types";
 import { RobotOutlined } from "@ant-design/icons";
-import { Card, Space, Typography, Spin } from "antd";
+import { Card, Space, Typography, Spin, Button } from "antd";
 import { AgentExecutionCard } from "./AgentExecutionCard";
 import { buildAgentTree, WorkflowAgent } from "@openbrowser-ai/core";
 
@@ -9,9 +9,23 @@ const { Text, Paragraph } = Typography;
 
 interface WorkflowCardProps {
   task: TaskData;
+  onUpdateTask?: (status?: "stop") => void;
 }
 
-export const WorkflowCard: React.FC<WorkflowCardProps> = ({ task }) => {
+const sendWorkflowConfirmCallback = (
+  callbackId: string,
+  value: "confirm" | "cancel"
+) => {
+  chrome.runtime.sendMessage({
+    type: "callback",
+    data: { callbackId, value: value },
+  });
+};
+
+export const WorkflowCard: React.FC<WorkflowCardProps> = ({
+  task,
+  onUpdateTask,
+}) => {
   if (!task.workflow) return null;
 
   const workflow = task.workflow;
@@ -82,6 +96,29 @@ export const WorkflowCard: React.FC<WorkflowCardProps> = ({ task }) => {
             )}
           </div>
         ))}
+        {task.workflowConfirm === "pending" && (
+          <div className="mt-4 flex justify-end gap-3">
+            <Button
+              onClick={() => {
+                task.workflowConfirm = "cancel";
+                sendWorkflowConfirmCallback(task.taskId, "cancel");
+                onUpdateTask?.("stop");
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="primary"
+              onClick={() => {
+                task.workflowConfirm = "confirm";
+                sendWorkflowConfirmCallback(task.taskId, "confirm");
+                onUpdateTask?.();
+              }}
+            >
+              Confirm
+            </Button>
+          </div>
+        )}
       </Card>
     </div>
   );
