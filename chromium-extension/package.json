@@ -12,13 +12,18 @@
     "openbrowser-ai"
   ],
   "dependencies": {
+    "@ant-design/icons": "^5.5.1",
     "@openbrowser-ai/core": "workspace:*",
     "@openbrowser-ai/extension": "workspace:*",
     "antd": "^5.22.4",
+    "katex": "^0.16.11",
+    "pdfjs-dist": "^5.4.394",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
-    "react-markdown": "^10.1.0",
-    "remark-gfm": "^4.0.1"
+    "react-markdown": "^9.0.1",
+    "rehype-katex": "^7.0.0",
+    "remark-gfm": "^4.0.0",
+    "remark-math": "^6.0.0"
   },
   "devDependencies": {
     "@types/chrome": "0.0.158",
