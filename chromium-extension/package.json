@@ -12,7 +12,7 @@
     "openbrowser-ai"
   ],
   "dependencies": {
-    "@ant-design/icons": "^5.5.1",
+    "@ant-design/icons": "^6.1.0",
     "@openbrowser-ai/core": "workspace:*",
     "@openbrowser-ai/extension": "workspace:*",
     "antd": "^5.22.4",

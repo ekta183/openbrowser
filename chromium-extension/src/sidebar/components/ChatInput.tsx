@@ -61,7 +61,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
                       preview={false}
                     />
                   ) : (
-                    <FileOutlined className="mr-2 text-base" />
+                    <FileOutlined className="mr-2" />
                   )}
                   <Text className="text-xs mr-2 max-w-[150px] overflow-hidden text-ellipsis whitespace-nowrap">
                     {file.filename}

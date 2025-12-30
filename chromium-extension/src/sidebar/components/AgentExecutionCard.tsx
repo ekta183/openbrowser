@@ -63,16 +63,8 @@ export const AgentExecutionCard: React.FC<AgentExecutionCardProps> = ({
         <Space>
           <Text strong>{agentNode.name}</Text>
           {status === "running" && <Spin size="small" />}
-          {status === "done" && (
-            <Tag color="success" icon={<CheckCircleOutlined />}>
-              Completed
-            </Tag>
-          )}
-          {status === "error" && (
-            <Tag color="error" icon={<CloseCircleOutlined />}>
-              Error
-            </Tag>
-          )}
+          {status === "done" && <CheckCircleOutlined className="text-green-500" />}
+          {status === "error" && <CloseCircleOutlined className="text-red-500" />}
         </Space>
       }
     >

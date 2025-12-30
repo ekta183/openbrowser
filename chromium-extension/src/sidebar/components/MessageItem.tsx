@@ -6,8 +6,8 @@ import { ToolCallItem } from "./ToolCallItem";
 import { WorkflowCard } from "./WorkflowCard";
 import { MarkdownRenderer } from "../MarkdownRenderer";
 import { AgentExecutionCard } from "./AgentExecutionCard";
-import { Card, Space, Typography, Alert, Image, Spin } from "antd";
-import { RobotOutlined, UserOutlined, FileOutlined } from "@ant-design/icons";
+import { Typography, Image, Spin } from "antd";
+import { RobotOutlined, UserOutlined, FileOutlined, ExclamationCircleOutlined } from "@ant-design/icons";
 
 const { Text, Paragraph } = Typography;
 
@@ -110,78 +110,74 @@ export const MessageItem: React.FC<MessageItemProps> = ({ message }) => {
 
   if (message.role === "user") {
     return (
-      <div className="flex justify-end mb-4">
-        <Card
-          className="max-w-[70%] bg-blue-500 text-white"
-          styles={{
-            body: { padding: "12px 16px" },
-          }}
-        >
-          <Space direction="vertical" size="small" className="w-full">
-            {(message.content || message.uploadedFiles?.length) && (
-              <Space>
-                <UserOutlined />
-                {message.content && (
-                  <Paragraph className="m-0 text-white">
-                    {userContent}
-                  </Paragraph>
-                )}
-                {message.status == "waiting" && (
-                  <Spin size="small" className="text-white" />
-                )}
-              </Space>
-            )}
-            {message.uploadedFiles && message.uploadedFiles.length > 0 && (
-              <div className="mt-2">
-                {message.uploadedFiles.map((file) => {
-                  const isImage = file.mimeType.startsWith("image/");
-                  return (
-                    <div
-                      key={file.id}
-                      className="mb-2 p-2 bg-white/20 rounded"
-                    >
-                      {isImage ? (
-                        <Image
-                          src={
-                            file.url
-                              ? file.url
-                              : `data:${file.mimeType};base64,${file.base64Data}`
-                          }
-                          alt={file.filename}
-                          className="max-w-full max-h-[200px] rounded"
-                          preview={false}
-                        />
-                      ) : (
-                        <Space>
-                          <FileOutlined className="text-white" />
-                          <Text className="text-white text-xs">
-                            {file.filename}
-                          </Text>
-                        </Space>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </Space>
-        </Card>
+      <div className="flex gap-3 mb-4">
+        {/* User Icon */}
+        <div className="flex-shrink-0">
+          <div className="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center">
+            <UserOutlined className="text-gray-600" />
+          </div>
+        </div>
+
+        {/* User Content */}
+        <div className="flex-1 min-w-0">
+          {message.content && (
+            <div className="text-gray-900 leading-relaxed text-sm">
+              {userContent}
+            </div>
+          )}
+          {message.status == "waiting" && (
+            <Spin size="small" className="mt-1" />
+          )}
+          {message.uploadedFiles && message.uploadedFiles.length > 0 && (
+            <div className="mt-2 space-y-2">
+              {message.uploadedFiles.map((file) => {
+                const isImage = file.mimeType.startsWith("image/");
+                return (
+                  <div
+                    key={file.id}
+                    className="inline-block"
+                  >
+                    {isImage ? (
+                      <Image
+                        src={
+                          file.url
+                            ? file.url
+                            : `data:${file.mimeType};base64,${file.base64Data}`
+                        }
+                        alt={file.filename}
+                        className="max-w-full max-h-[200px] rounded border border-gray-200"
+                        preview={false}
+                      />
+                    ) : (
+                      <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-gray-50 rounded border border-gray-200">
+                        <FileOutlined className="text-gray-500" />
+                        <Text className="text-gray-700 text-sm">
+                          {file.filename}
+                        </Text>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
       </div>
     );
   }
 
   // AI message
   return (
-    <div className="mb-4">
-      <Card
-        className="bg-gray-50"
-        title={
-          <Space>
-            <RobotOutlined />
-            <Text strong>AI Assistant</Text>
-          </Space>
-        }
-      >
+    <div className="flex gap-3 mb-4">
+      {/* AI Icon */}
+      <div className="flex-shrink-0">
+        <div className="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center">
+          <RobotOutlined className="text-gray-600" />
+        </div>
+      </div>
+
+      {/* AI Content */}
+      <div className="flex-1 min-w-0">
         {message.contentItems && message.contentItems.length > 0 ? (
           message.contentItems.map((item, index) => {
             if (item.type === "thinking" && item.text != "[REDACTED]") {
@@ -223,7 +219,7 @@ export const MessageItem: React.FC<MessageItemProps> = ({ message }) => {
                       : `data:${item.mimeType};base64,${item.data}`
                   }
                   alt="Message file"
-                  className="max-w-full my-2"
+                  className="max-w-full my-2 rounded border border-gray-200"
                 />
               );
             } else if (
@@ -251,7 +247,7 @@ export const MessageItem: React.FC<MessageItemProps> = ({ message }) => {
             return null;
           })
         ) : message.content ? (
-          <div className="mb-2">
+          <div className="mb-2 text-gray-900 leading-relaxed text-sm">
             <MarkdownRenderer content={message.content} />
           </div>
         ) : message.status == "waiting" ? (
@@ -260,14 +256,12 @@ export const MessageItem: React.FC<MessageItemProps> = ({ message }) => {
           <></>
         )}
         {message.error && (
-          <Alert
-            message="Error"
-            description={String(message.error)}
-            type="error"
-            className="mt-2"
-          />
+          <div className="mt-2 flex items-start gap-2 text-sm text-red-600">
+            <ExclamationCircleOutlined className="mt-0.5" />
+            <span>{String(message.error)}</span>
+          </div>
         )}
-      </Card>
+      </div>
     </div>
   );
 };
