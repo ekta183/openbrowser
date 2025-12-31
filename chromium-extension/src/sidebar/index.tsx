@@ -3,13 +3,12 @@ import { uuidv4 } from "@openbrowser-ai/core";
 import { createRoot } from "react-dom/client";
 import { ChatInput } from "./components/ChatInput";
 import { SessionHistory } from "./components/SessionHistory";
-import { ClearOutlined } from "@ant-design/icons";
 import { useFileUpload } from "./hooks/useFileUpload";
 import { MessageItem } from "./components/MessageItem";
 import type { ChatMessage, UploadedFile } from "./types";
 import { useChatCallbacks } from "./hooks/useChatCallbacks";
 import { useSessionManagement } from "./hooks/useSessionManagement";
-import { Empty, message as AntdMessage, Button, Tooltip } from "antd";
+import { Empty, message as AntdMessage } from "antd";
 import React, { useState, useRef, useEffect, useCallback } from "react";
 
 const AppRun = () => {
@@ -274,17 +273,6 @@ const AppRun = () => {
         ref={messagesContainerRef}
         className="flex-1 overflow-y-auto overflow-x-hidden p-4 bg-gray-100 relative"
       >
-        {messages.length > 0 && (
-          <Tooltip title="Clear messages" placement="left">
-            <Button
-              type="text"
-              size="small"
-              icon={<ClearOutlined />}
-              onClick={handleNewSession}
-              className="absolute top-1.5 z-[999] w-8 h-8 p-0 flex items-center justify-center"
-            />
-          </Tooltip>
-        )}
         {messages.length === 0 ? (
           <Empty
             description="Start a conversation!"

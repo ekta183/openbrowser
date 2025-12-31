@@ -99,7 +99,7 @@ export const SessionHistory: React.FC<SessionHistoryProps> = ({
         renderItem={(session) => (
           <List.Item
             key={session.id}
-            className={`cursor-pointer hover:bg-gray-50 transition-colors ${
+            className={`cursor-pointer hover:bg-gray-50 transition-colors !pl-2 ${
               session.id === currentSessionId ? "bg-blue-50" : ""
             }`}
             onClick={() => handleSelectSession(session.id)}
