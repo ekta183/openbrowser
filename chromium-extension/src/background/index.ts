@@ -19,6 +19,7 @@ import WriteFileAgent from "./agent/file-agent";
 import { BrowserAgent } from "@openbrowser-ai/extension";
 
 var chatAgent: ChatAgent | null = null;
+var currentChatId: string | null = null;
 const callbackIdMap = new Map<string, Function>();
 const abortControllers = new Map<string, AbortController>();
 
@@ -198,7 +199,7 @@ async function loadLLMs(): Promise<LLMs> {
   return llms;
 }
 
-async function init(): Promise<ChatAgent | void> {
+async function init(chatId?: string): Promise<ChatAgent | void> {
   initAgentServices();
 
   const llms = await loadLLMs();
@@ -206,7 +207,8 @@ async function init(): Promise<ChatAgent | void> {
   // agents.forEach((agent) =>
   //   agent.Tools.forEach((tool) => wrapToolInputSchema(agent, tool))
   // );
-  chatAgent = new ChatAgent({ llms, agents });
+  chatAgent = new ChatAgent({ llms, agents }, chatId);
+  currentChatId = chatId || null;
   chatAgent.initMessages().catch((e) => {
     printLog("init messages error: " + e, "error");
   });
@@ -217,6 +219,12 @@ async function init(): Promise<ChatAgent | void> {
 // Handle chat request
 async function handleChat(requestId: string, data: any): Promise<void> {
   const messageId = data.messageId;
+  const chatId = data.chatId as string;
+
+  // Reinitialize agent if chatId changed or agent doesn't exist
+  if (!chatAgent || currentChatId !== chatId) {
+    await init(chatId);
+  }
 
   if (!chatAgent) {
     chrome.runtime.sendMessage({
@@ -323,15 +331,6 @@ async function handleStop(requestId: string, data: any): Promise<void> {
   }
 }
 
-// Handle clear messages request
-async function handleClearMessages(
-  requestId: string,
-  data: any
-): Promise<void> {
-  if (chatAgent) {
-    chatAgent.getMemory().clear();
-  }
-}
 
 // Handle get tabs request
 async function handleGetTabs(requestId: string, data: any): Promise<void> {
@@ -383,7 +382,6 @@ const eventHandlers: Record<
   callback: handleCallback,
   uploadFile: handleUploadFile,
   stop: handleStop,
-  clear_messages: handleClearMessages,
   getTabs: handleGetTabs,
 };
 

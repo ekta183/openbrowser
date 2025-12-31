@@ -2,11 +2,13 @@ import "./index.css";
 import { uuidv4 } from "@openbrowser-ai/core";
 import { createRoot } from "react-dom/client";
 import { ChatInput } from "./components/ChatInput";
+import { SessionHistory } from "./components/SessionHistory";
 import { ClearOutlined } from "@ant-design/icons";
 import { useFileUpload } from "./hooks/useFileUpload";
 import { MessageItem } from "./components/MessageItem";
 import type { ChatMessage, UploadedFile } from "./types";
 import { useChatCallbacks } from "./hooks/useChatCallbacks";
+import { useSessionManagement } from "./hooks/useSessionManagement";
 import { Empty, message as AntdMessage, Button, Tooltip } from "antd";
 import React, { useState, useRef, useEffect, useCallback } from "react";
 
@@ -20,6 +22,15 @@ const AppRun = () => {
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const [autoScroll, setAutoScroll] = useState(true);
   const [updateTrigger, setUpdateTrigger] = useState(0);
+
+  const {
+    chatId,
+    showSessionHistory,
+    setShowSessionHistory,
+    handleNewSession: newSession,
+    handleShowSessionHistory,
+    handleSelectSession: selectSession,
+  } = useSessionManagement();
 
   const forceUpdate = useCallback(
     (status?: "stop") => {
@@ -178,6 +189,7 @@ const AppRun = () => {
         data: {
           user: userParts,
           messageId: messageId,
+          chatId: chatId,
           windowId: (await chrome.windows.getCurrent()).id,
         },
       });
@@ -187,7 +199,7 @@ const AppRun = () => {
     } finally {
       setSending(false);
     }
-  }, [inputValue, uploadedFiles, sending, uploadFile]);
+  }, [inputValue, uploadedFiles, sending, uploadFile, chatId]);
 
   // Stop message
   const stopMessage = useCallback((messageId: string) => {
@@ -231,14 +243,13 @@ const AppRun = () => {
     }
   }, [currentMessageId, stopMessage]);
 
-  // Clear all messages
-  const clearMessages = useCallback(() => {
-    setMessages([]);
-    setCurrentMessageId(null);
-    chrome.runtime.sendMessage({
-      type: "clear_messages",
-    });
-  }, []);
+  const handleNewSession = useCallback(() => {
+    newSession(setMessages, setCurrentMessageId, messages.length);
+  }, [newSession, messages.length]);
+
+  const handleSelectSession = useCallback((sessionId: string) => {
+    selectSession(sessionId, setMessages, setCurrentMessageId);
+  }, [selectSession]);
 
   // Listen for storage changes (e.g., when LLM config is updated)
   useEffect(() => {
@@ -247,14 +258,14 @@ const AppRun = () => {
       areaName: string
     ) => {
       if (areaName === "sync" && changes["llmConfig"]) {
-        clearMessages();
+        handleNewSession();
       }
     };
     chrome.storage.onChanged.addListener(handleStorageChange);
     return () => {
       chrome.storage.onChanged.removeListener(handleStorageChange);
     };
-  }, [clearMessages]);
+  }, [handleNewSession]);
 
   return (
     <div className="flex flex-col h-screen bg-white">
@@ -269,7 +280,7 @@ const AppRun = () => {
               type="text"
               size="small"
               icon={<ClearOutlined />}
-              onClick={clearMessages}
+              onClick={handleNewSession}
               className="absolute top-1.5 z-[999] w-8 h-8 p-0 flex items-center justify-center"
             />
           </Tooltip>
@@ -302,6 +313,16 @@ const AppRun = () => {
         uploadedFiles={uploadedFiles}
         sending={sending}
         currentMessageId={currentMessageId}
+        onNewSession={handleNewSession}
+        onShowSessionHistory={handleShowSessionHistory}
+      />
+
+      {/* Session History Modal */}
+      <SessionHistory
+        visible={showSessionHistory}
+        onClose={() => setShowSessionHistory(false)}
+        onSelectSession={handleSelectSession}
+        currentSessionId={chatId}
       />
     </div>
   );

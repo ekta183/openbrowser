@@ -1,13 +1,14 @@
 import { ChatService, uuidv4 } from "@openbrowser-ai/core";
 import { OpenBrowserMessage, WebSearchResult } from "@openbrowser-ai/core/types";
+import { dbService } from "../../db/db-service";
 
 export class SimpleChatService implements ChatService {
-  loadMessages(chatId: string): Promise<OpenBrowserMessage[]> {
-    return Promise.resolve([]);
+  async loadMessages(chatId: string): Promise<OpenBrowserMessage[]> {
+    return await dbService.loadMessages(chatId);
   }
 
-  addMessage(chatId: string, messages: OpenBrowserMessage[]): Promise<void> {
-    return Promise.resolve();
+  async addMessage(chatId: string, messages: OpenBrowserMessage[]): Promise<void> {
+    await dbService.saveMessages(chatId, messages);
   }
 
   memoryRecall(chatId: string, prompt: string): Promise<string> {

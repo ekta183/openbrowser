@@ -5,6 +5,8 @@ import {
   FileOutlined,
   DeleteOutlined,
   PaperClipOutlined,
+  PlusOutlined,
+  HistoryOutlined,
 } from "@ant-design/icons";
 import type { UploadedFile } from "../types";
 import { Button, Space, Image, Typography } from "antd";
@@ -22,6 +24,8 @@ interface ChatInputProps {
   uploadedFiles: UploadedFile[];
   sending: boolean;
   currentMessageId: string | null;
+  onNewSession: () => void;
+  onShowSessionHistory: () => void;
 }
 
 export const ChatInput: React.FC<ChatInputProps> = ({
@@ -34,8 +38,11 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   uploadedFiles,
   sending,
   currentMessageId,
+  onNewSession,
+  onShowSessionHistory,
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const isEmpty = !inputValue.trim() && uploadedFiles.length === 0;
 
   return (
     <div className="p-4 bg-gray-100">
@@ -104,16 +111,25 @@ export const ChatInput: React.FC<ChatInputProps> = ({
 
         {/* Bottom Action Bar */}
         <div className="absolute bottom-0 left-0 right-0 flex items-center justify-between px-3 py-2">
-          {/* Left: Attachment Button */}
-          <Button
-            type="text"
-            icon={<PaperClipOutlined />}
-            onClick={() => fileInputRef.current?.click()}
-            disabled={sending || currentMessageId !== null}
-            className="text-gray-500 hover:text-gray-700"
-          />
+          {/* Left: Attachment and History Buttons */}
+          <Space size="small">
+            <Button
+              type="text"
+              icon={<PaperClipOutlined />}
+              onClick={() => fileInputRef.current?.click()}
+              disabled={sending || currentMessageId !== null}
+              className="text-gray-500 hover:text-gray-700"
+            />
+            <Button
+              type="text"
+              icon={<HistoryOutlined />}
+              onClick={onShowSessionHistory}
+              disabled={sending || currentMessageId !== null}
+              className="text-gray-500 hover:text-gray-700"
+            />
+          </Space>
 
-          {/* Right: Send/Stop Button */}
+          {/* Right: Send/Stop/New Session Button */}
           {currentMessageId ? (
             <Button
               type="text"
@@ -122,15 +138,21 @@ export const ChatInput: React.FC<ChatInputProps> = ({
               onClick={onStop}
               className="text-red-500 hover:text-red-600"
             />
+          ) : isEmpty ? (
+            <Button
+              type="text"
+              icon={<PlusOutlined />}
+              onClick={onNewSession}
+              disabled={sending}
+              className="text-blue-500 hover:text-blue-600 disabled:text-gray-300"
+            />
           ) : (
             <Button
               type="text"
               icon={<SendOutlined />}
               onClick={onSend}
               loading={sending}
-              disabled={
-                (!inputValue.trim() && uploadedFiles.length === 0) || sending
-              }
+              disabled={sending}
               className="text-blue-500 hover:text-blue-600 disabled:text-gray-300"
             />
           )}

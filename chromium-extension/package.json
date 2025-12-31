@@ -16,6 +16,7 @@
     "@openbrowser-ai/core": "workspace:*",
     "@openbrowser-ai/extension": "workspace:*",
     "antd": "^5.22.4",
+    "idb": "^8.0.3",
     "katex": "^0.16.11",
     "pdfjs-dist": "^5.4.394",
     "react": "^18.2.0",
