@@ -41,15 +41,19 @@ export async function main(prompt: string, context: any[] = [], sessionId?: stri
     onMessage: async (message: StreamCallbackMessage) => {
       // Send structured messages to UI instead of plain text
       if (message.type == "workflow") {
-        // Handle null workflow gracefully
-        if (message.workflow && message.workflow.xml) {
-          chrome.runtime.sendMessage({
-            type: "message",
-            messageType: "workflow",
-            workflow: message.workflow.xml,
-            streamDone: message.streamDone,
-            sessionId: sessionId
-          });
+        // Handle workflow - send if either xml or answer exists
+        if (message.workflow) {
+          // Send XML if available, otherwise send answer as plain text
+          const workflowContent = message.workflow.xml || message.workflow.answer || "";
+          if (workflowContent) {
+            chrome.runtime.sendMessage({
+              type: "message",
+              messageType: "workflow",
+              workflow: workflowContent,
+              streamDone: message.streamDone,
+              sessionId: sessionId
+            });
+          }
         }
         return;
       }

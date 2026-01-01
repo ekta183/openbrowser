@@ -30,6 +30,18 @@ export function parseWorkflow(
     }
     let sIdx = xml.indexOf("<root>");
     if (sIdx == -1) {
+      // If no <root> tag found, return workflow with raw text as answer
+      // This handles both streaming (done=false) and final (done=true) cases
+      if (xml.trim()) {
+        return {
+          taskId: taskId,
+          name: "",
+          thought: thinking || "",
+          agents: [],
+          xml: "",
+          answer: xml.trim(),
+        };
+      }
       return _workflow;
     }
     xml = xml.substring(sIdx);
@@ -44,6 +56,17 @@ export function parseWorkflow(
     const doc = parser.parseFromString(xml, "text/xml");
     let root = doc.documentElement;
     if (root.tagName !== "root") {
+      // If done and root tag is not valid, return workflow with raw text as answer
+      if (done) {
+        return {
+          taskId: taskId,
+          name: "",
+          thought: thinking || "",
+          agents: [],
+          xml: "",
+          answer: xml.trim() || undefined,
+        };
+      }
       return _workflow;
     }
     const agents: WorkflowAgent[] = [];
@@ -106,7 +129,16 @@ export function parseWorkflow(
     return workflow;
   } catch (e) {
     if (done) {
-      throw e;
+      // When done and parsing fails, return workflow with raw text as answer
+      Log.warn("Failed to parse XML workflow, returning raw text as answer:", e);
+      return {
+        taskId: taskId,
+        name: "",
+        thought: thinking || "",
+        agents: [],
+        xml: "",
+        answer: xml.trim() || undefined,
+      };
     } else {
       return _workflow;
     }

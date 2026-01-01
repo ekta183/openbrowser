@@ -2,8 +2,36 @@ import { WorkflowData } from "../types/messages";
 
 export const parseWorkflowXML = (xml: string): WorkflowData | undefined => {
   try {
+    // Check if the input is XML or plain text
+    if (!xml || !xml.trim().startsWith("<")) {
+      // Plain text response - return it as an answer
+      const trimmedText = xml?.trim();
+      if (trimmedText) {
+        return {
+          name: "",
+          thought: "",
+          agents: [],
+          answer: trimmedText
+        };
+      }
+      return undefined;
+    }
+
     const parser = new DOMParser();
     const doc = parser.parseFromString(xml, "text/xml");
+
+    // Check for XML parsing errors
+    const parserError = doc.querySelector("parsererror");
+    if (parserError) {
+      // If XML parsing failed, treat as plain text
+      const trimmedText = xml.trim();
+      return {
+        name: "",
+        thought: "",
+        agents: [],
+        answer: trimmedText
+      };
+    }
 
     const name = doc.querySelector("name")?.textContent || "";
     const thought = doc.querySelector("thought")?.textContent || "";
@@ -25,6 +53,16 @@ export const parseWorkflowXML = (xml: string): WorkflowData | undefined => {
     return { name, thought, agents, answer: answer || undefined };
   } catch (e) {
     console.error("Failed to parse XML", e);
+    // On error, try to return the raw text as answer
+    const trimmedText = xml?.trim();
+    if (trimmedText) {
+      return {
+        name: "",
+        thought: "",
+        agents: [],
+        answer: trimmedText
+      };
+    }
     return undefined;
   }
 };
